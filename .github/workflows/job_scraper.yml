@@ -1,5 +1,4 @@
 name: Job Ad Scraper
-
 on:
   schedule:
     - cron: '51 20 * * *'  # Runs at 2051 UTC every day
@@ -8,8 +7,11 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0  # Fetch all history for all branches and tags
     
@@ -41,15 +43,10 @@ jobs:
           https://www.uni-potsdam.de/de/verwaltung/dezernat3/stellenausschreibungen/it-und-technik \
           job_ads.db
 
-    - name: Commit changes
+    - name: Commit and push changes
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add job_ads.db
         git commit -m "Update job ads database" -a || echo "No changes to commit"
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: ${{ github.ref }}
+        git push
