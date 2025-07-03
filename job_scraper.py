@@ -74,37 +74,45 @@ def scrape_job_ads(soup, base_url):
     job_type = soup.find('h1').text.strip()
     logging.info(f"Job type found: {job_type}")
 
-    # Find the container for job listings
-    container = soup.find('div', class_='up-content-link-box')
+    # find the container for job listings
+    container = soup.find('ul', class_='upce-linkcard__body')
     if not container:
         logging.warning("Could not find the job listings container")
         return job_ads
 
-    for li in container.find_all('li'):
-        link = li.find('a', class_='up-document-link')
-        if link:
-            title = link.text.strip()
-            pdf_url = urljoin(base_url, link['href'])
-            
-            # Extract all text from the li element
-            full_text = li.get_text(strip=True)
-            
-            deadline = parse_deadline(full_text)
-            
-            kenn_nr_match = re.search(r'Kenn-Nr\.\s*(\S+)', full_text)
-            if kenn_nr_match:
-                job_id = kenn_nr_match.group(1)
-            else:
-                job_id = generate_id(title, deadline)
-            
-            logging.info(f"Found job ad: ID={job_id}, Title={title}, Deadline={deadline}")
-            job_ads.append({
-                'id': job_id,
-                'title': title,
-                'pdf_url': pdf_url,
-                'job_type': job_type,
-                'deadline': deadline
-            })
+    for li in container.find_all('li', class_='upce-linkcard__item'):
+        link_div = li.find('div', class_='upce-linkcard__link')
+        if link_div:
+            link = link_div.find('a')
+            if link:
+                title = link.text.strip()
+                pdf_url = urljoin(base_url, link['href'])
+                
+                # extract deadline from the description div
+                desc_div = li.find('div', class_='upce-linkcard__description')
+                deadline = None
+                job_id = None
+                
+                if desc_div:
+                    desc_text = desc_div.get_text(strip=True)
+                    deadline = parse_deadline(desc_text)
+                    
+                    # extract job ID
+                    kenn_nr_match = re.search(r'Kenn\.?-?Nr\.?\s*(\S+)', desc_text)
+                    if kenn_nr_match:
+                        job_id = kenn_nr_match.group(1)
+                
+                if not job_id:
+                    job_id = generate_id(title, deadline)
+                
+                logging.info(f"Found job ad: ID={job_id}, Title={title}, Deadline={deadline}")
+                job_ads.append({
+                    'id': job_id,
+                    'title': title,
+                    'pdf_url': pdf_url,
+                    'job_type': job_type,
+                    'deadline': deadline
+                })
 
     logging.info(f"Total job ads found: {len(job_ads)}")
     return job_ads
